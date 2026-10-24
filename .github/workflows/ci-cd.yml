@@ -1,45 +1,105 @@
+<<<<<<< HEAD
+
 name: BloomFilter Monorepo CI/CD & Chaos Validation
 
 on:
   push:
-    branches: [ "main", "master" ]
+    branches: ["main", "master"]
   pull_request:
-    branches: [ "main", "master" ]
+    branches: ["main", "master"]
+
+permissions:
+  contents: read
+=======
+name: BloomFilter Gradle CI/CD & Chaos Validation
+
+on:
+  push:
+    branches: ["main", "master", "build/gradle-kotlin-dsl"]
+  pull_request:
+    branches: ["main", "master"]
+>>>>>>> 2393034 (ci: migrate Maven workflow to Gradle)
 
 jobs:
   build-and-test:
-    name: Maven Build & Unit Tests (Java 21)
+    name: Gradle Build & Unit Tests (Java 21)
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout Monorepo
+      - name: Checkout monorepo
         uses: actions/checkout@v4
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
-          java-version: '21'
-          distribution: 'temurin'
-          cache: maven
+          java-version: "21"
+<<<<<<< HEAD
+          distribution: temurin
+
+      - name: Set up Gradle & Cache Dependencies
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Ensure Gradle Wrapper Is Executable
+        run: chmod +x ./gradlew
 
       - name: Build & Execute Unit Tests
-        run: mvn clean verify -B
+        run: ./gradlew clean build --no-daemon
 
       - name: Generate mTLS Certificates & PKCS12 Truststore
+        run: |
+          chmod +x ./scripts/generate-tls-certs.sh
+          ./scripts/generate-tls-certs.sh
+=======
+          distribution: "temurin"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build and test
+        run: ./gradlew --no-daemon clean build
+
+      - name: Generate mTLS certificates
         run: ./scripts/generate-tls-certs.sh
+>>>>>>> 2393034 (ci: migrate Maven workflow to Gradle)
 
   docker-and-chaos-validation:
-    name: Container Build & Chaos Mesh Manifest Validation
+    name: Container Build & Manifest Validation
     needs: build-and-test
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout Monorepo
+      - name: Checkout monorepo
         uses: actions/checkout@v4
 
-      - name: Generate mTLS Certificates
-        run: ./scripts/generate-tls-certs.sh
+<<<<<<< HEAD
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: "21"
+          distribution: temurin
 
-      - name: Build Production Docker Image
+      - name: Set up Gradle & Cache Dependencies
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Generate mTLS Certificates
+        run: |
+          chmod +x ./scripts/generate-tls-certs.sh
+          ./scripts/generate-tls-certs.sh
+=======
+      - name: Generate mTLS certificates
+        run: ./scripts/generate-tls-certs.sh
+>>>>>>> 2393034 (ci: migrate Maven workflow to Gradle)
+
+      - name: Build production Docker image
         run: docker build -t codingdevs/bloomfilter-sync-service:1.0.0 .
 
+<<<<<<< HEAD
       - name: Validate Kubernetes Kustomize Overlay
+        run: |
+          kubectl kustomize k8s/base > /tmp/rendered-k8s.yaml
+          test -s /tmp/rendered-k8s.yaml
+          echo "Kustomize manifest rendered successfully."
+=======
+      - name: Validate Kubernetes Kustomize overlay
         run: kubectl kustomize k8s/base > /tmp/rendered-k8s.yaml
+>>>>>>> 2393034 (ci: migrate Maven workflow to Gradle)

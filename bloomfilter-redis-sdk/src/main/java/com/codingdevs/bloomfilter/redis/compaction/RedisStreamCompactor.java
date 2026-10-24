@@ -61,7 +61,7 @@ public class RedisStreamCompactor implements AutoCloseable {
                     .maxLen(targetMaxEntries)
                     .approximateTrimming();
 
-            long deletedCount = jedis.xTrim(streamKey, trimParams);
+            long deletedCount = jedis.xtrim(streamKey, trimParams);
             long currentLength = getStreamLength();
 
             log.info("Compaction complete for [{}]. Removed approx {} entries. Stream length is now {}",
@@ -75,7 +75,7 @@ public class RedisStreamCompactor implements AutoCloseable {
 
     public long getStreamLength() {
         try {
-            return jedis.xLen(streamKey);
+            return jedis.xlen(streamKey);
         } catch (Exception e) {
             return 0L;
         }
@@ -83,7 +83,7 @@ public class RedisStreamCompactor implements AutoCloseable {
 
     public long getMaxConsumerGroupPendingLag() {
         try {
-            List<StreamGroupInfo> groups = jedis.xInfoGroups(streamKey);
+            List<StreamGroupInfo> groups = jedis.xinfoGroups(streamKey);
             if (groups == null || groups.isEmpty()) {
                 return 0L;
             }

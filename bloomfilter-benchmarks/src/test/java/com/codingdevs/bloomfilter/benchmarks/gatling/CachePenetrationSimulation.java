@@ -49,7 +49,7 @@ public class CachePenetrationSimulation extends Simulation {
             .repeat(500, "idx").on(
                     exec(http("Register Seeded User")
                             .post("/api/v1/users")
-                            .body(StringBody("{"id":"seeded_user_#{idx}","payload":"{\"tier\":\"enterprise\"}"}"))
+                    .body(StringBody("{\"id\":\"seeded_user_#{idx}\",\"payload\":\"{\\\"tier\\\":\\\"enterprise\\\"}\"}"))
                             .check(status().is(201)))
             );
 

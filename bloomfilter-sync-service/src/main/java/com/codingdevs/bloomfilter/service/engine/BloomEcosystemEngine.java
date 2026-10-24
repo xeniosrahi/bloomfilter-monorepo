@@ -3,6 +3,7 @@ package com.codingdevs.bloomfilter.service.engine;
 import com.codingdevs.bloomfilter.core.ScalableBloomFilter;
 import com.codingdevs.bloomfilter.redis.compaction.RedisStreamCompactor;
 import com.codingdevs.bloomfilter.redis.recovery.ClusterBootstrapRecovery;
+import com.codingdevs.bloomfilter.redis.recovery.BloomDumpChunk;
 import com.codingdevs.bloomfilter.redis.recovery.RedisBloomStateTransfer;
 import com.codingdevs.bloomfilter.redis.telemetry.BloomTelemetryMetrics;
 import jakarta.annotation.PostConstruct;
@@ -13,7 +14,6 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import redis.clients.jedis.JedisPooled;
 import redis.clients.jedis.StreamEntryID;
-import redis.clients.jedis.resps.ScanDumpResult;
 
 import java.util.Collection;
 import java.util.HashMap;
@@ -84,7 +84,7 @@ public class BloomEcosystemEngine {
                     activeKey.get(), e.getMessage());
         }
         try {
-            jedis.xGroupCreate(streamKey, consumerGroup, StreamEntryID.UNRECEIVED_ENTRY, true);
+            jedis.xgroupCreate(streamKey, consumerGroup, StreamEntryID.LAST_ENTRY, true);
         } catch (Exception ignored) {
         }
         ClusterBootstrapRecovery.hydrateL1OnStartup(
@@ -149,7 +149,7 @@ public class BloomEcosystemEngine {
                     Map<String, String> body = new HashMap<>();
                     body.put("element", element);
                     body.put("sender", nodeId);
-                    jedis.xAdd(streamKey, StreamEntryID.NEW_ENTRY, body);
+                    jedis.xadd(streamKey, StreamEntryID.NEW_ENTRY, body);
                 }
             } catch (Exception e) {
                 log.warn("L2 write deferred during network degradation: {}", e.getMessage());
@@ -193,11 +193,11 @@ public class BloomEcosystemEngine {
         }
     }
 
-    public List<ScanDumpResult> exportBinaryState() {
+    public List<BloomDumpChunk> exportBinaryState() {
         return stateTransfer.backupBloomFilterState(activeKey.get());
     }
 
-    public void restoreBinaryState(String targetFilterKey, List<ScanDumpResult> chunks) {
+    public void restoreBinaryState(String targetFilterKey, List<BloomDumpChunk> chunks) {
         stateTransfer.restoreBloomFilterState(targetFilterKey, chunks);
     }
 

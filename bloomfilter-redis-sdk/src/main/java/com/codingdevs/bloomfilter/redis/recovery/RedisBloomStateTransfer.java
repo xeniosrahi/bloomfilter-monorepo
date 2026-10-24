@@ -3,18 +3,18 @@ package com.codingdevs.bloomfilter.redis.recovery;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import redis.clients.jedis.JedisPooled;
-import redis.clients.jedis.resps.ScanDumpResult;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
- * Binary state transfer manager using RedisBloom's native {@code BF.SCANDUMP}
- * and {@code BF.LOADCHUNK} commands to snapshot or clone L2 Bloom Filter shards.
+ * Binary state transfer using RedisBloom BF.SCANDUMP and BF.LOADCHUNK.
  */
 public class RedisBloomStateTransfer implements AutoCloseable {
 
-    private static final Logger log = LoggerFactory.getLogger(RedisBloomStateTransfer.class);
+    private static final Logger log =
+            LoggerFactory.getLogger(RedisBloomStateTransfer.class);
 
     private final JedisPooled jedis;
     private final boolean ownsClient;
@@ -28,42 +28,63 @@ public class RedisBloomStateTransfer implements AutoCloseable {
         this(jedis, false, filterKey);
     }
 
-    private RedisBloomStateTransfer(JedisPooled jedis, boolean ownsClient, String filterKey) {
+    private RedisBloomStateTransfer(
+            JedisPooled jedis, boolean ownsClient, String filterKey) {
         this.jedis = jedis;
         this.ownsClient = ownsClient;
         this.filterKey = filterKey;
     }
 
-    /**
-     * Dumps the binary structure of the L2 RedisBloom filter into memory chunks via {@code BF.SCANDUMP}.
-     */
-    public List<ScanDumpResult> backupBloomFilterState() {
-        return backupBloomFilterState(this.filterKey);
+    public List<BloomDumpChunk> backupBloomFilterState() {
+        return backupBloomFilterState(filterKey);
     }
 
-    public List<ScanDumpResult> backupBloomFilterState(String sourceFilterKey) {
-        List<ScanDumpResult> chunks = new ArrayList<>();
+    public List<BloomDumpChunk> backupBloomFilterState(
+            String sourceFilterKey) {
+
+        List<BloomDumpChunk> chunks = new ArrayList<>();
         long iterator = 0L;
+
         while (true) {
-            ScanDumpResult result = jedis.bfScanDump(sourceFilterKey, iterator);
-            if (result == null || result.getIterator() == 0L) {
+            Map.Entry<Long, byte[]> result =
+                    jedis.bfScanDump(sourceFilterKey, iterator);
+
+            if (result == null) {
                 break;
             }
-            chunks.add(result);
-            iterator = result.getIterator();
+
+            long nextIterator = result.getKey();
+            byte[] data = result.getValue();
+
+            // BF.SCANDUMP returns iterator 0 when the scan is complete.
+            if (nextIterator == 0L) {
+                break;
+            }
+
+            if (data != null && data.length > 0) {
+                chunks.add(new BloomDumpChunk(nextIterator, data));
+            }
+
+            iterator = nextIterator;
         }
-        log.info("Extracted {} binary state chunks from Redis filter [{}].", chunks.size(), sourceFilterKey);
+
+        log.info("Extracted {} binary state chunks from Redis filter [{}].",
+                chunks.size(), sourceFilterKey);
+
         return chunks;
     }
 
-    /**
-     * Restores a target RedisBloom filter shard using compiled binary chunks via {@code BF.LOADCHUNK}.
-     */
-    public void restoreBloomFilterState(String targetFilterKey, List<ScanDumpResult> chunks) {
-        for (ScanDumpResult chunk : chunks) {
-            jedis.bfLoadChunk(targetFilterKey, chunk.getIterator(), chunk.getData());
+    public void restoreBloomFilterState(
+            String targetFilterKey,
+            List<BloomDumpChunk> chunks) {
+
+        for (BloomDumpChunk chunk : chunks) {
+            jedis.bfLoadChunk(
+                    targetFilterKey, chunk.iterator(), chunk.data());
         }
-        log.info("Target Bloom filter [{}] hydrated from {} binary state chunks.", targetFilterKey, chunks.size());
+
+        log.info("Target Bloom filter [{}] hydrated from {} binary state chunks.",
+                targetFilterKey, chunks.size());
     }
 
     @Override
