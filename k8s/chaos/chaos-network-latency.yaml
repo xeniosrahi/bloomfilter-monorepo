@@ -1,0 +1,25 @@
+apiVersion: chaos-mesh.org/v1alpha1
+kind: NetworkChaos
+metadata:
+  name: redis-network-latency
+  namespace: staging-environment
+spec:
+  action: delay
+  mode: all
+  selector:
+    namespaces:
+      - staging-environment
+    labelSelectors:
+      app: bloom-sync-service
+  delay:
+    latency: '50ms'
+    correlation: '50'
+  duration: '5m'
+  direction: to
+  target:
+    selector:
+      namespaces:
+        - staging-environment
+      labelSelectors:
+        app: redis-bloom-secure
+    mode: all

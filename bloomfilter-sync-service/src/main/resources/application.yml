@@ -1,0 +1,39 @@
+server:
+  port: ${SERVER_PORT:8080}
+  shutdown: graceful
+
+spring:
+  application:
+    name: bloom-sync-service
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
+
+redis:
+  host: ${REDIS_HOST:localhost}
+  port: ${REDIS_PORT:6379}
+  ssl-enabled: ${REDIS_SSL_ENABLED:false}
+  truststore-path: ${REDIS_TRUSTSTORE_PATH:/certs/truststore.p12}
+  truststore-password: ${REDIS_TRUSTSTORE_PASSWORD:securepassword123}
+
+bloom:
+  initial-capacity: ${BLOOM_INITIAL_CAPACITY:100000}
+  target-error-rate: ${BLOOM_TARGET_ERROR_RATE:0.01}
+  stream-key: ${BLOOM_STREAM_KEY:bloom-stream}
+  filter-key: ${BLOOM_FILTER_KEY:global_bloom_l2}
+  consumer-group: ${BLOOM_CONSUMER_GROUP:bloom-cluster-group}
+  stream-max-entries: ${BLOOM_STREAM_MAX_ENTRIES:50000}
+  telemetry-refresh-ms: ${BLOOM_TELEMETRY_REFRESH_MS:15000}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: prometheus,health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}

@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: staging-environment
+  labels:
+    app.kubernetes.io/part-of: bloomfilter-ecosystem
+    sla-tier: "99.99"

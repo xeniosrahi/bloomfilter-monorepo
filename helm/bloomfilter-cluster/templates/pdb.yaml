@@ -1,0 +1,14 @@
+{{- if .Values.podDisruptionBudget.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "bloomfilter.fullname" . }}-pdb
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "bloomfilter.labels" . | nindent 4 }}
+spec:
+  minAvailable: {{ .Values.podDisruptionBudget.minAvailable }}
+  selector:
+    matchLabels:
+      app: bloom-sync-service
+{{- end }}

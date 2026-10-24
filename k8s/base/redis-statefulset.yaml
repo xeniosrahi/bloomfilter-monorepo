@@ -1,0 +1,57 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-bloom-secure
+  namespace: staging-environment
+  labels:
+    app: redis-bloom-secure
+spec:
+  ports:
+    - port: 6379
+      targetPort: 6379
+      name: redis-tls
+  selector:
+    app: redis-bloom-secure
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis-bloom-secure
+  namespace: staging-environment
+  labels:
+    app: redis-bloom-secure
+spec:
+  serviceName: "redis-bloom-secure"
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis-bloom-secure
+  template:
+    metadata:
+      labels:
+        app: redis-bloom-secure
+    spec:
+      containers:
+        - name: redis-stack
+          image: redis/redis-stack-server:latest
+          ports:
+            - containerPort: 6379
+              name: redis
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "2000m"
+              memory: "4Gi"
+          volumeMounts:
+            - name: redis-data
+              mountPath: /data
+  volumeClaimTemplates:
+    - metadata:
+        name: redis-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 20Gi

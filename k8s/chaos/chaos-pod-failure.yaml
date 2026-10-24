@@ -1,0 +1,14 @@
+apiVersion: chaos-mesh.org/v1alpha1
+kind: PodChaos
+metadata:
+  name: bloom-node-failover-test
+  namespace: staging-environment
+spec:
+  action: pod-kill
+  mode: one
+  selector:
+    namespaces:
+      - staging-environment
+    labelSelectors:
+      app: bloom-sync-service
+  gracePeriod: 0

@@ -1,0 +1,53 @@
+{
+  "title": "CodingDevs BloomFilter L1/L2 Cluster Telemetry (99.99% SLA)",
+  "uid": "codingdevs-bloom-sla",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "panels": [
+    {
+      "id": 1,
+      "title": "L1/L2 Query Throughput (Hits vs Misses)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "rate(bloom_filter_queries_total{result=\"hit\"}[1m])",
+          "legendFormat": "Suspected Hits ({{instance}})"
+        },
+        {
+          "expr": "rate(bloom_filter_queries_total{result=\"miss\"}[1m])",
+          "legendFormat": "Definite Misses / Fast 404s ({{instance}})"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Empirical False Positive Rate (Budget: <= 2%)",
+      "type": "gauge",
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 0 },
+      "targets": [
+        {
+          "expr": "rate(bloom_filter_false_positives_total[5m]) / (rate(bloom_filter_queries_total{result=\"hit\"}[5m]) + 1)",
+          "legendFormat": "False Positive Ratio"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Primary Layer Bit Saturation & Stream Lag",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 0 },
+      "targets": [
+        {
+          "expr": "bloom_filter_saturation",
+          "legendFormat": "Bit Saturation ({{instance}})"
+        },
+        {
+          "expr": "bloom_stream_sync_lag",
+          "legendFormat": "Stream Sync Lag ({{instance}})"
+        }
+      ]
+    }
+  ]
+}

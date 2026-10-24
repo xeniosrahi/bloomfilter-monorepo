@@ -1,0 +1,56 @@
+{{- if .Values.redis.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "bloomfilter.fullname" . }}-redis
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: redis-bloom-secure
+    {{- include "bloomfilter.labels" . | nindent 4 }}
+spec:
+  ports:
+    - port: {{ .Values.redis.port }}
+      targetPort: {{ .Values.redis.port }}
+      name: redis-tls
+  selector:
+    app: redis-bloom-secure
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "bloomfilter.fullname" . }}-redis
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: redis-bloom-secure
+    {{- include "bloomfilter.labels" . | nindent 4 }}
+spec:
+  serviceName: "{{ include "bloomfilter.fullname" . }}-redis"
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis-bloom-secure
+  template:
+    metadata:
+      labels:
+        app: redis-bloom-secure
+    spec:
+      containers:
+        - name: redis-stack
+          image: {{ .Values.redis.image }}
+          ports:
+            - containerPort: {{ .Values.redis.port }}
+              name: redis
+          resources:
+            {{- toYaml .Values.redis.resources | nindent 12 }}
+          volumeMounts:
+            - name: redis-data
+              mountPath: /data
+  volumeClaimTemplates:
+    - metadata:
+        name: redis-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: {{ .Values.redis.storageSize }}
+{{- end }}

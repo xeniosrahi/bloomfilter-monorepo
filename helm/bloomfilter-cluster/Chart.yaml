@@ -1,0 +1,14 @@
+apiVersion: v2
+name: bloomfilter-cluster
+description: Production Helm Chart for the 99.99% SLA L1/L2 Distributed Bloom Filter Ecosystem (Spring Boot + Redis Stack + HPA + PDB + NetworkPolicy)
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+keywords:
+  - bloom-filter
+  - cuckoo-filter
+  - redisbloom
+  - cache-penetration
+  - high-availability
+maintainers:
+  - name: CodingDevs Platform Team

@@ -1,0 +1,10 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: bloom-sync-service-pdb
+  namespace: staging-environment
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: bloom-sync-service

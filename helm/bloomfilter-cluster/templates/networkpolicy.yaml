@@ -1,0 +1,23 @@
+{{- if .Values.networkPolicy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "bloomfilter.fullname" . }}-redis-netpol
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "bloomfilter.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app: redis-bloom-secure
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: bloom-sync-service
+      ports:
+        - protocol: TCP
+          port: {{ .Values.redis.port }}
+{{- end }}

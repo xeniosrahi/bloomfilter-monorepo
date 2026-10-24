@@ -1,0 +1,6 @@
+redis:
+  host: ${REDIS_HOST:redis-bloom-secure}
+  port: ${REDIS_PORT:6379}
+  ssl-enabled: true
+  truststore-path: ${REDIS_TRUSTSTORE_PATH:/certs/truststore.p12}
+  truststore-password: ${REDIS_TRUSTSTORE_PASSWORD:securepassword123}

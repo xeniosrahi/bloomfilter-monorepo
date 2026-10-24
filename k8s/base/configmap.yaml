@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bloom-sync-config
+  namespace: staging-environment
+data:
+  REDIS_HOST: "redis-bloom-secure.staging-environment.svc.cluster.local"
+  REDIS_PORT: "6379"
+  REDIS_SSL_ENABLED: "true"
+  BLOOM_INITIAL_CAPACITY: "100000"
+  BLOOM_TARGET_ERROR_RATE: "0.01"
+  BLOOM_STREAM_KEY: "bloom-stream"
+  BLOOM_FILTER_KEY: "global_bloom_l2"
+  BLOOM_CONSUMER_GROUP: "bloom-cluster-group"
+  BLOOM_STREAM_MAX_ENTRIES: "50000"

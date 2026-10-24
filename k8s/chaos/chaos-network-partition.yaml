@@ -1,0 +1,22 @@
+apiVersion: chaos-mesh.org/v1alpha1
+kind: NetworkChaos
+metadata:
+  name: app-redis-partition
+  namespace: staging-environment
+spec:
+  action: partition
+  mode: all
+  selector:
+    namespaces:
+      - staging-environment
+    labelSelectors:
+      app: bloom-sync-service
+  direction: both
+  target:
+    selector:
+      namespaces:
+        - staging-environment
+      labelSelectors:
+        app: redis-bloom-secure
+    mode: all
+  duration: '30s'

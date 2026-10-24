@@ -1,0 +1,19 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: redis-bloom-allow-only-app
+  namespace: staging-environment
+spec:
+  podSelector:
+    matchLabels:
+      app: redis-bloom-secure
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: bloom-sync-service
+      ports:
+        - protocol: TCP
+          port: 6379

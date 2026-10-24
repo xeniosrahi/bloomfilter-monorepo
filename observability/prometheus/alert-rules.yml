@@ -1,0 +1,34 @@
+groups:
+  - name: bloomfilter_sla_alerts
+    rules:
+      - alert: CriticalFalsePositiveSpike
+        expr: >
+          rate(bloom_filter_false_positives_total[5m])
+          /
+          (rate(bloom_filter_queries_total{result="hit"}[5m]) + 1) > 0.02
+        for: 2m
+        labels:
+          severity: critical
+          sla: "99.99"
+        annotations:
+          summary: "Bloom Filter False Positive Rate crossed 2% engineering budget"
+          description: "Trigger zero-downtime active-passive rotation via POST /api/v1/bloom/admin/rotate"
+
+      - alert: SynchronisationNodeLag
+        expr: bloom_stream_sync_lag > 500
+        for: 1m
+        labels:
+          severity: warning
+          sla: "99.99"
+        annotations:
+          summary: "Redis Stream consumer group lag exceeded 500 messages"
+          description: "Verify stream consumer health before XTRIM compaction window elapses."
+
+      - alert: HighBloomFilterSaturation
+        expr: bloom_filter_saturation > 0.80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Primary Bloom filter bit saturation exceeded 80%"
+          description: "Execute active-passive pointer switch to prevent false-positive degradation."

@@ -1,0 +1,6 @@
+1. CodingDevs BloomFilter Cluster ({{ .Release.Name }}) deployed to namespace: {{ .Values.global.namespace }}
+2. Check L1/L2 Cluster Stats:
+   kubectl port-forward -n {{ .Values.global.namespace }} svc/{{ include "bloomfilter.fullname" . }}-service 8080:{{ .Values.service.port }}
+   curl http://localhost:8080/api/v1/bloom/stats
+3. Run Gatling Cache Penetration Load Simulation:
+   mvn -pl bloomfilter-benchmarks gatling:test -DtargetBaseUrl=http://localhost:8080

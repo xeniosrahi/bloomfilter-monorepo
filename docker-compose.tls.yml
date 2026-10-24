@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  redis-bloom-tls:
+    image: redis/redis-stack-server:latest
+    container_name: redis_bloom_secure
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./certs:/tls:ro
+      - redis_secure_data:/data
+    command: >
+      redis-server
+      --tls-port 6379
+      --port 0
+      --tls-cert-file /tls/redis.crt
+      --tls-key-file /tls/redis.key
+      --tls-ca-cert-file /tls/ca.crt
+      --tls-auth-clients no
+      --loadmodule /opt/redis-stack/lib/redisbloom.so
+    restart: always
+
+  bloom-sync-secure-1:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: bloom_sync_secure_1
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=tls
+      - REDIS_HOST=redis-bloom-tls
+      - REDIS_PORT=6379
+      - REDIS_SSL_ENABLED=true
+      - REDIS_TRUSTSTORE_PATH=/certs/truststore.p12
+      - REDIS_TRUSTSTORE_PASSWORD=securepassword123
+    volumes:
+      - ./certs:/certs:ro
+    depends_on:
+      - redis-bloom-tls
+    restart: always
+
+volumes:
+  redis_secure_data:

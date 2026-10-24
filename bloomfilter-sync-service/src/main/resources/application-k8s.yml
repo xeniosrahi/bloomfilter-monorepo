@@ -1,0 +1,6 @@
+redis:
+  host: ${REDIS_HOST:redis-bloom-secure.staging-environment.svc.cluster.local}
+  port: ${REDIS_PORT:6379}
+  ssl-enabled: ${REDIS_SSL_ENABLED:true}
+  truststore-path: /certs/truststore.p12
+  truststore-password: ${REDIS_TRUSTSTORE_PASSWORD:securepassword123}
