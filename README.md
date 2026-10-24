@@ -1,4 +1,4 @@
-# `com.codingdevs.bloomfilter` — Production-Grade Distributed Bloom Filter Monorepo
+# Production-Grade Distributed Bloom Filter Monorepo
 
 An enterprise Java 21 / Spring Boot 3.3.4 multi-module monorepo implementing high-throughput, space-efficient probabilistic data structures and a **99.99% Uptime SLA Hybrid L1/L2 Distributed Synchronization Architecture** backed by **Redis Stack (RedisBloom)**, **Redis Streams**, **mTLS (TLSv1.3)**, **Prometheus/Micrometer**, **Kubernetes (Kustomize + Helm)**, **Chaos Mesh**, and **Gatling / JMH / JMeter Benchmarks**.
 
