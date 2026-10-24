@@ -13,7 +13,7 @@ permissions:
 jobs:
   build-and-test:
     name: Gradle Build & Unit Tests (Java 21)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
 
     steps:
       - name: Checkout Monorepo
@@ -42,7 +42,7 @@ jobs:
   docker-and-chaos-validation:
     name: Container Build & Chaos Mesh Manifest Validation
     needs: build-and-test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout Monorepo
