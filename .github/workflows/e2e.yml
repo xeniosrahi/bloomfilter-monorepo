@@ -1,0 +1,192 @@
+name: BloomFilter E2E Cluster Tests
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-cluster-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  e2e-cluster:
+    name: Docker Compose Cluster E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Install Gradle 8.10.2
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.10.2"
+          validate-wrappers: false
+
+      - name: Build and run unit tests
+        run: gradle clean build --no-daemon
+
+      # Build a runtime-only test image from the JAR produced above.
+      # This deliberately avoids requiring gradle-wrapper.jar in Docker.
+      - name: Prepare E2E runtime image
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .github/e2e
+
+          cat > .github/e2e/Dockerfile <<'DOCKERFILE'
+          FROM eclipse-temurin:21-jre-alpine
+          WORKDIR /app
+          COPY bloomfilter-sync-service/build/libs/bloomfilter-sync-service-1.0.0.jar /app/app.jar
+          EXPOSE 8080
+          ENTRYPOINT ["java", "-XX:+UseZGC", "-XX:MaxRAMPercentage=75.0", "-jar", "/app/app.jar"]
+          DOCKERFILE
+
+          cat > .github/e2e/compose.override.yml <<'COMPOSE'
+          services:
+            bloom-sync-node-1:
+              image: bloomfilter-sync-e2e:ci
+              build:
+                context: .
+                dockerfile: .github/e2e/Dockerfile
+
+            bloom-sync-node-2:
+              image: bloomfilter-sync-e2e:ci
+              build:
+                context: .
+                dockerfile: .github/e2e/Dockerfile
+          COMPOSE
+
+      - name: Start Redis and application cluster
+        run: |
+          docker compose \
+            -f docker-compose.yml \
+            -f .github/e2e/compose.override.yml \
+            up -d --build redis-bloom bloom-sync-node-1 bloom-sync-node-2
+
+      - name: Wait for cluster health
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          wait_for_health() {
+            local url="$1"
+            local name="$2"
+
+            for attempt in $(seq 1 60); do
+              if curl --silent --fail "$url" >/dev/null; then
+                echo "$name is healthy"
+                return 0
+              fi
+              sleep 3
+            done
+
+            echo "::error::$name did not become healthy"
+            return 1
+          }
+
+          wait_for_health http://localhost:8080/actuator/health node-1
+          wait_for_health http://localhost:8081/actuator/health node-2
+
+      - name: Verify Redis Bloom module
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          docker compose \
+            -f docker-compose.yml \
+            -f .github/e2e/compose.override.yml \
+            exec -T redis-bloom redis-cli \
+            BF.RESERVE ci:e2e:module-check 0.01 1000
+
+          docker compose \
+            -f docker-compose.yml \
+            -f .github/e2e/compose.override.yml \
+            exec -T redis-bloom redis-cli \
+            BF.ADD ci:e2e:module-check probe
+
+          result="$(
+            docker compose \
+              -f docker-compose.yml \
+              -f .github/e2e/compose.override.yml \
+              exec -T redis-bloom redis-cli \
+              BF.EXISTS ci:e2e:module-check probe
+          )"
+
+          test "$result" = "1"
+
+      - name: Verify cross-node Bloom filter visibility
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          add_response="$(
+            curl --silent --show-error --fail \
+              -X POST http://localhost:8080/api/v1/bloom/items \
+              -H 'Content-Type: application/json' \
+              -d '{"element":"ci-e2e-cross-node-probe"}'
+          )"
+
+          echo "$add_response" | jq .
+
+          echo "$add_response" | jq -e \
+            '.element == "ci-e2e-cross-node-probe" and .status == "SYNCHRONIZED"'
+
+          exists_response="$(
+            curl --silent --show-error --fail \
+              http://localhost:8081/api/v1/bloom/items/ci-e2e-cross-node-probe/exists
+          )"
+
+          echo "$exists_response" | jq .
+
+          echo "$exists_response" | jq -e '.mightContain == true'
+
+      - name: Verify surviving node after node-1 shutdown
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          docker compose \
+            -f docker-compose.yml \
+            -f .github/e2e/compose.override.yml \
+            stop bloom-sync-node-1
+
+          for attempt in $(seq 1 20); do
+            if curl --silent --fail \
+              http://localhost:8081/actuator/health >/dev/null; then
+              break
+            fi
+            sleep 2
+          done
+
+          curl --silent --show-error --fail \
+            http://localhost:8081/actuator/health | jq -e '.status == "UP"'
+
+          curl --silent --show-error --fail \
+            http://localhost:8081/api/v1/bloom/items/ci-e2e-cross-node-probe/exists \
+            | jq -e '.mightContain == true'
+
+      - name: Collect container logs
+        if: failure()
+        run: |
+          docker compose \
+            -f docker-compose.yml \
+            -f .github/e2e/compose.override.yml \
+            logs --no-color || true
+
+      - name: Shut down E2E cluster
+        if: always()
+        run: |
+          docker compose \
+            -f docker-compose.yml \
+            -f .github/e2e/compose.override.yml \
+            down --volumes --remove-orphans || true
