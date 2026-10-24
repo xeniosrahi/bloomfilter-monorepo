@@ -12,19 +12,16 @@ on:
           - gatling
           - both
         default: jmh
-
       target_base_url:
-        description: Base URL of the deployed service for Gatling
+        description: Optional existing service URL; leave blank to start a temporary local Compose cluster
         required: false
         type: string
         default: ""
-
       penetration_rps:
         description: Cache penetration requests per second
         required: true
         type: string
         default: "500"
-
       legitimate_rps:
         description: Legitimate requests per second
         required: true
@@ -54,13 +51,13 @@ jobs:
           distribution: temurin
           java-version: "21"
 
-      - name: Install Gradle 8.10.2
+      - name: Set up Gradle 8.10.2
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.10.2"
           validate-wrappers: false
 
-      - name: Validate Gatling inputs
+      - name: Validate benchmark inputs
         if: ${{ inputs.suite == 'gatling' || inputs.suite == 'both' }}
         env:
           TARGET_BASE_URL: ${{ inputs.target_base_url }}
@@ -70,27 +67,84 @@ jobs:
         run: |
           set -euo pipefail
 
-          if [[ ! "$TARGET_BASE_URL" =~ ^https?://[^[:space:]]+$ ]]; then
-            echo "::error::Provide a reachable HTTP or HTTPS target_base_url."
+          if [[ -n "$TARGET_BASE_URL" && ! "$TARGET_BASE_URL" =~ ^https?://[^[:space:]]+$ ]]; then
+            echo "::error::target_base_url must be a valid HTTP(S) URL, or blank for a temporary local cluster."
             exit 1
           fi
-
           if [[ ! "$PENETRATION_RPS" =~ ^[1-9][0-9]*$ ]]; then
             echo "::error::penetration_rps must be a positive integer."
             exit 1
           fi
-
           if [[ ! "$LEGITIMATE_RPS" =~ ^[1-9][0-9]*$ ]]; then
             echo "::error::legitimate_rps must be a positive integer."
             exit 1
           fi
 
+      - name: Build modules and run unit tests for Gatling
+        if: ${{ inputs.suite == 'gatling' || inputs.suite == 'both' }}
+        run: gradle clean build --no-daemon
+
+      - name: Prepare temporary local cluster image
+        if: ${{ (inputs.suite == 'gatling' || inputs.suite == 'both') && inputs.target_base_url == '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .github/e2e
+
+          cat > .github/e2e/Dockerfile <<'DOCKERFILE'
+          FROM eclipse-temurin:21-jre-alpine
+          WORKDIR /app
+          COPY bloomfilter-sync-service/build/libs/bloomfilter-sync-service-1.0.0.jar /app/app.jar
+          EXPOSE 8080
+          ENTRYPOINT ["java", "-XX:+UseZGC", "-XX:MaxRAMPercentage=75.0", "-jar", "/app/app.jar"]
+          DOCKERFILE
+
+          cat > .github/e2e/compose.override.yml <<'COMPOSE'
+          services:
+            bloom-sync-node-1:
+              image: bloomfilter-sync-e2e:ci
+              build:
+                context: .
+                dockerfile: .github/e2e/Dockerfile
+            bloom-sync-node-2:
+              image: bloomfilter-sync-e2e:ci
+              build:
+                context: .
+                dockerfile: .github/e2e/Dockerfile
+          COMPOSE
+
+      - name: Start temporary local Compose cluster
+        if: ${{ (inputs.suite == 'gatling' || inputs.suite == 'both') && inputs.target_base_url == '' }}
+        run: |
+          docker compose \
+            -f docker-compose.yml \
+            -f .github/e2e/compose.override.yml \
+            up -d --build redis-bloom bloom-sync-node-1 bloom-sync-node-2
+
+      - name: Wait for temporary cluster health
+        if: ${{ (inputs.suite == 'gatling' || inputs.suite == 'both') && inputs.target_base_url == '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          wait_for_health() {
+            local url="$1"
+            local name="$2"
+            for attempt in $(seq 1 60); do
+              if curl --silent --fail "$url" >/dev/null; then
+                echo "$name is healthy"
+                return 0
+              fi
+              sleep 3
+            done
+            echo "::error::$name did not become healthy"
+            return 1
+          }
+          wait_for_health http://localhost:8080/actuator/health node-1
+          wait_for_health http://localhost:8081/actuator/health node-2
+
       - name: Run JMH microbenchmarks
         if: ${{ inputs.suite == 'jmh' || inputs.suite == 'both' }}
-        run: |
-          gradle :bloomfilter-benchmarks:jmh \
-            --no-daemon \
-            --rerun-tasks
+        run: gradle :bloomfilter-benchmarks:jmh --no-daemon --rerun-tasks
 
       - name: Run Gatling load simulation
         if: ${{ inputs.suite == 'gatling' || inputs.suite == 'both' }}
@@ -101,9 +155,36 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-
+          TARGET_BASE_URL="${TARGET_BASE_URL:-http://localhost:8080}"
           gradle :bloomfilter-benchmarks:gatlingRun \
             --no-daemon \
             "-PtargetBaseUrl=${TARGET_BASE_URL}" \
             "-PpenetrationRps=${PENETRATION_RPS}" \
             "-PlegitimateRps=${LEGITIMATE_RPS}"
+
+      - name: Collect temporary cluster logs on failure
+        if: ${{ failure() && (inputs.suite == 'gatling' || inputs.suite == 'both') && inputs.target_base_url == '' }}
+        run: |
+          docker compose \
+            -f docker-compose.yml \
+            -f .github/e2e/compose.override.yml \
+            logs --no-color || true
+
+      - name: Upload Gatling reports
+        if: ${{ always() && (inputs.suite == 'gatling' || inputs.suite == 'both') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: gatling-reports
+          path: |
+            bloomfilter-benchmarks/build/reports/gatling/
+            bloomfilter-benchmarks/build/gatling/
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Shut down temporary Compose cluster
+        if: ${{ always() && (inputs.suite == 'gatling' || inputs.suite == 'both') && inputs.target_base_url == '' }}
+        run: |
+          docker compose \
+            -f docker-compose.yml \
+            -f .github/e2e/compose.override.yml \
+            down --volumes --remove-orphans || true
