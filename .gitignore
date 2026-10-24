@@ -1,6 +1,7 @@
 target/
 *.class
 *.jar
+!gradle/wrapper/gradle-wrapper.jar
 *.war
 *.ear
 *.logs
@@ -14,5 +15,6 @@ certs/*.p12
 certs/*.srl
 
 # Gradle
+.gradle/
 build/
 **/build/
