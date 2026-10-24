@@ -67,7 +67,7 @@ public class ResilientBloomManager implements AutoCloseable {
 
         // 2. Initialize durable Redis Stream Consumer Group (MKSTREAM = true)
         try {
-            jedis.xGroupCreate(streamKey, consumerGroup, StreamEntryID.UNRECEIVED_ENTRY, true);
+            jedis.xgroupCreate(streamKey, consumerGroup, StreamEntryID.UNRECEIVED_ENTRY, true);
         } catch (Exception ignored) {
         }
 
@@ -90,7 +90,7 @@ public class ResilientBloomManager implements AutoCloseable {
                         streamsMap.put(streamKey, StreamEntryID.UNRECEIVED_ENTRY);
 
                         List<Map.Entry<String, List<StreamEntry>>> results =
-                                streamJedis.xReadGroup(consumerGroup, nodeId, readParams, streamsMap);
+                                streamJedis.xreadGroup(consumerGroup, nodeId, readParams, streamsMap);
 
                         if (results != null) {
                             for (Map.Entry<String, List<StreamEntry>> entry : results) {
@@ -107,7 +107,7 @@ public class ResilientBloomManager implements AutoCloseable {
                                         }
                                     }
                                     // Acknowledge processed message for Consumer Group ACK pattern
-                                    streamJedis.xAck(streamKey, consumerGroup, streamMessage.getID());
+                                    streamJedis.xack(streamKey, consumerGroup, streamMessage.getID());
                                 }
                             }
                         }
@@ -160,7 +160,7 @@ public class ResilientBloomManager implements AutoCloseable {
             Map<String, String> message = new HashMap<>();
             message.put("element", element);
             message.put("sender", nodeId);
-            jedis.xAdd(streamKey, StreamEntryID.NEW_ENTRY, message);
+            jedis.xadd(streamKey, StreamEntryID.NEW_ENTRY, message);
         }
     }
 

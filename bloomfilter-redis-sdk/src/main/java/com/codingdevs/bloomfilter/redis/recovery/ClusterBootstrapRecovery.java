@@ -49,7 +49,7 @@ public final class ClusterBootstrapRecovery {
             ScalableBloomFilter localL1Filter) {
 
         try {
-            List<StreamGroupInfo> groups = jedis.xInfoGroups(streamKey);
+            List<StreamGroupInfo> groups = jedis.xinfoGroups(streamKey);
             boolean isDataLostOrFreshNode = (localL1Filter.getTotalInsertions() == 0);
 
             if (groups != null) {
@@ -75,7 +75,7 @@ public final class ClusterBootstrapRecovery {
                 }
 
                 // 2. Replay retained stream window via XRANGE to warm up active keys in L1
-                List<StreamEntry> retainedEntries = jedis.xRange(
+                List<StreamEntry> retainedEntries = jedis.xrange(
                         streamKey, (StreamEntryID) null, (StreamEntryID) null, 10_000);
                 if (retainedEntries != null) {
                     int replayed = 0;
