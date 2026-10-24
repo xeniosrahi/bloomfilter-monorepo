@@ -6,9 +6,11 @@ An enterprise Java 21 / Spring Boot 3.3.4 multi-module monorepo implementing hig
 
 ```text
 bloomfilter-monorepo/
-├── pom.xml                                  # Parent Maven POM (Java 21, Spring Boot 3.3.4, Guava 33, Jedis 5.1.2, Gatling, JMH)
+├── settings.gradle.kts                     # Gradle Kotlin DSL multi-project settings
+├── build.gradle.kts                        # Shared Java 21 build configuration
+├── gradlew                                 # Pinned Gradle wrapper
 ├── Makefile                                 # Build, TLS certs, Docker Compose, K8s, Helm, Chaos & Benchmark targets
-├── Dockerfile                               # Multi-stage Maven + Eclipse Temurin 21 JRE Alpine (ZGC, non-root)
+├── Dockerfile                               # Multi-stage Gradle + Eclipse Temurin 21 JRE Alpine (ZGC, non-root)
 ├── docker-compose.yml                       # Multi-node local cluster + Redis Stack + Prometheus + Grafana
 ├── docker-compose.tls.yml                   # mTLS-enforced Redis Stack (--tls-port 6379) + Secure Spring Boot Node
 ├── scripts/
@@ -52,14 +54,14 @@ bloomfilter-monorepo/
 ├── observability/
 │   ├── prometheus/                          # prometheus.yml & alert-rules.yml (PromQL SLA alerts)
 │   └── grafana/                             # dashboard-bloom-filter.json
-└── .github/workflows/ci-cd.yml              # Automated Maven test, mTLS cert gen, Docker build, Kustomize & Helm CI
+└── .github/workflows/ci-cd.yml              # Automated Gradle test, mTLS cert gen, Docker build, Kustomize & Helm CI
 ```
 
 ## Quick Start
 
 ### 1. Build and Run Unit Tests
 ```bash
-mvn clean test
+./gradlew clean test
 ```
 
 ### 2. Launch Multi-Node Cluster with Docker Compose

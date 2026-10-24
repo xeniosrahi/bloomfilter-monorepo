@@ -12,3 +12,8 @@ certs/*.key
 certs/*.crt
 certs/*.p12
 certs/*.srl
+
+# Gradle
+.gradle/
+build/
+**/build/

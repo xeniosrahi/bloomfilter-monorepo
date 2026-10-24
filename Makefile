@@ -3,13 +3,13 @@
 all: build
 
 build:
-	mvn clean package -DskipTests
+	./gradlew clean build
 
 test:
-	mvn test
+	./gradlew test
 
 clean:
-	mvn clean
+	./gradlew clean
 
 certs:
 	./scripts/generate-tls-certs.sh
@@ -40,10 +40,10 @@ chaos-partition:
 	kubectl apply -f k8s/chaos/chaos-network-partition.yaml
 
 benchmark-gatling:
-	mvn -pl bloomfilter-benchmarks gatling:test -DtargetBaseUrl=http://localhost:8080
+	./gradlew :bloomfilter-benchmarks:gatlingRun -PtargetBaseUrl=http://localhost:8080
 
 benchmark-jmh:
-	mvn -pl bloomfilter-benchmarks test-compile exec:java -Dexec.mainClass="org.openjdk.jmh.Main"
+	./gradlew :bloomfilter-benchmarks:jmh
 
 benchmark-jmeter:
 	jmeter -n -t bloomfilter-benchmarks/jmeter/cache-penetration-test-plan.jmx -l target/jmeter-results.jtl
