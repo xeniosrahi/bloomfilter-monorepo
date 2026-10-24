@@ -15,7 +15,9 @@ tasks.register<JavaExec>("gatlingRun") {
     dependsOn(tasks.testClasses)
     classpath = sourceSets.test.get().runtimeClasspath
     mainClass.set("io.gatling.app.Gatling")
-    args("-s", "com.codingdevs.bloomfilter.benchmarks.gatling.CachePenetrationSimulation")
+    args("-s", "com.codingdevs.bloomfilter.benchmarks.gatling.CachePenetrationSimulation",
+    "-rf",
+    layout.buildDirectory.dir("reports/gatling").get().asFile.absolutePath)
     systemProperty("targetBaseUrl", providers.gradleProperty("targetBaseUrl").orElse("http://localhost:8080").get())
     systemProperty("penetrationRps", providers.gradleProperty("penetrationRps").orElse("500").get())
     systemProperty("legitimateRps", providers.gradleProperty("legitimateRps").orElse("200").get())
