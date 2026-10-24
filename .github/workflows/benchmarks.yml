@@ -155,7 +155,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          TARGET_BASE_URL="${TARGET_BASE_URL:-http://localhost:8080}"
+
+          mkdir -p bloomfilter-benchmarks/build/reports/gatling
+
           gradle :bloomfilter-benchmarks:gatlingRun \
             --no-daemon \
             "-PtargetBaseUrl=${TARGET_BASE_URL}" \
