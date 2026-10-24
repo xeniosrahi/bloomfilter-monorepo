@@ -35,14 +35,14 @@ public class RedisBloomStateTransfer implements AutoCloseable {
         this.filterKey = filterKey;
     }
 
-    public List<Map.Entry<Long, byte[]>> backupBloomFilterState() {
+    public List<BloomDumpChunk> backupBloomFilterState() {
         return backupBloomFilterState(filterKey);
     }
 
-    public List<Map.Entry<Long, byte[]>> backupBloomFilterState(
+    public List<BloomDumpChunk> backupBloomFilterState(
             String sourceFilterKey) {
 
-        List<Map.Entry<Long, byte[]>> chunks = new ArrayList<>();
+        List<BloomDumpChunk> chunks = new ArrayList<>();
         long iterator = 0L;
 
         while (true) {
@@ -62,7 +62,7 @@ public class RedisBloomStateTransfer implements AutoCloseable {
             }
 
             if (data != null && data.length > 0) {
-                chunks.add(Map.entry(nextIterator, data));
+                chunks.add(new BloomDumpChunk(nextIterator, data));
             }
 
             iterator = nextIterator;
@@ -76,11 +76,11 @@ public class RedisBloomStateTransfer implements AutoCloseable {
 
     public void restoreBloomFilterState(
             String targetFilterKey,
-            List<Map.Entry<Long, byte[]>> chunks) {
+            List<BloomDumpChunk> chunks) {
 
-        for (Map.Entry<Long, byte[]> chunk : chunks) {
+        for (BloomDumpChunk chunk : chunks) {
             jedis.bfLoadChunk(
-                    targetFilterKey, chunk.getKey(), chunk.getValue());
+                    targetFilterKey, chunk.iterator(), chunk.data());
         }
 
         log.info("Target Bloom filter [{}] hydrated from {} binary state chunks.",
